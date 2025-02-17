@@ -6,7 +6,7 @@ from asyncio import create_subprocess_exec, gather, run as asyrun
 from uuid import uuid4
 from base64 import b64decode
 from importlib import import_module, reload
-
+from aiohttp import web
 from requests import get as rget
 from pytz import timezone
 from bs4 import BeautifulSoup
@@ -33,6 +33,19 @@ from .helper.themes import BotTheme
 from .modules import authorize, clone, gd_count, gd_delete, gd_list, cancel_mirror, mirror_leech, status, torrent_search, torrent_select, ytdlp, \
                      rss, shell, eval, users_settings, bot_settings, speedtest, save_msg, images, imdb, anilist, mediainfo, mydramalist, gen_pyro_sess, \
                      gd_clean, broadcast, category_select
+                     
+async def health_handler(request):
+    """Simple health check handler that always returns healthy status"""
+    return web.Response(text="healthy", status=200)
+
+async def start_health_server():
+    app = web.Application()
+    app.router.add_get("/health", health_handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8080)
+    await site.start()
+    LOGGER.info("Health check server started on port 8080")
 
 async def stats(client, message):
     msg, btns = await get_stats(message)
@@ -242,7 +255,7 @@ async def log_check():
     
 
 async def main():
-    await gather(start_cleanup(), torrent_search.initiate_search_tools(), restart_notification(), search_images(), set_commands(bot), log_check())
+    await gather(start_cleanup(), torrent_search.initiate_search_tools(), restart_notification(), search_images(), set_commands(bot), log_check(), start_health_server())
     await sync_to_async(start_aria2_listener, wait=False)
     
     bot.add_handler(MessageHandler(
